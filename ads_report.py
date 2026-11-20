@@ -2,7 +2,9 @@
 import os
 import requests
 import pandas as pd
-
+import logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s | %(levelname)s | %(message)s', force=True)
+log = logging.getLogger('ads_report')
 API_VERSION = 'v27.0'
 ACCOUNT_ID = 'act_621122445388218'
 TIKTOK_FILE = 'data/tiktok_export_demo.csv'
@@ -11,7 +13,20 @@ META_TOKEN = os.environ['META_ACCESS_TOKEN']
 TELEGRAM_TOKEN = os.environ['TELEGRAM_BOT_TOKEN']
 TELEGRAM_CHAT_ID = os.environ['TELEGRAM_CHAT_ID']
 
+def retry(func, attempts=3, pause=10):
+    import time
 
+    def wrapper():
+        for attempt in range(1, attempts + 1):
+            try:
+                return func()
+            except Exception as error:
+                log.warning('%s failed, attempt %s of %s: %s', func.__name__, attempt, attempts, type(error).__name__)
+                if attempt == attempts:
+                    raise
+                time.sleep(pause)
+
+    return wrapper
 def get_meta_rows(date_preset='this_year'):
     url = f'https://graph.facebook.com/{API_VERSION}/{ACCOUNT_ID}/insights'
     params = {
@@ -159,7 +174,8 @@ def write_sheet(all_ads):
     sheet.clear()
     sheet.update(values=data, range_name='A1')
     print('Sheet rows written:', len(data) - 1)
-
+get_meta_rows = retry(get_meta_rows)
+get_account_currency = retry(get_account_currency)
 
 def main():
     rows = get_meta_rows()
