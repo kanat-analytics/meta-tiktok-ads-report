@@ -189,7 +189,20 @@ def main():
     summary = make_summary(all_ads)
     send_telegram(make_report_text(summary))
     print('Done')
+    # Send a Telegram alert if the report fails
+def alert_on_error(func):
+    def wrapper():
+        try:
+            func()
+        except Exception as error:
+            log.error('Report failed: %s', type(error).__name__)
+            send_telegram(f'Ads report failed: {type(error).__name__}. See the GitHub Actions log.')
+            raise
 
+    return wrapper
+
+
+main = alert_on_error(main)
 
 if __name__ == '__main__':
     main()
